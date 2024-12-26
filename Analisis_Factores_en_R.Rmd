@@ -1,0 +1,129 @@
+---
+title: "Proyecto_MM"
+author: "Sebas Murillo"
+date: "2024-12-08"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Análisis de Factores: Proyecto Métodos Multivariados
+
+
+```{r}
+# Leer el archivo CSV:
+datos <- read.csv("gym_members_exercise_tracking.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+head(datos)
+```
+
+```{r}
+# Ver la dimensión del dataset (filas y columnas)
+cat("Dimensión: \n")
+dim(datos)
+
+# Obtener una descripción de las variables (tipo y ejemplos)
+cat("\nSTR: \n")
+str(datos)
+
+# Resumen estadístico de las variables numéricas
+cat("\nSummary: \n")
+summary(datos)
+
+# Verificar si hay valores vacios
+cat("\nNANs: \n")
+colSums(is.na(datos))
+```
+
+```{r}
+# Crear un subset sin Gender y Workout_Type, y evaluando si excluyes Height o Weight
+datos_num <- datos[, c("Age", "Weight..kg.", "Max_BPM", "Avg_BPM", "Resting_BPM",
+                       "Session_Duration..hours.", "Calories_Burned", 
+                       "Fat_Percentage", "Water_Intake..liters.",
+                       "Workout_Frequency..days.week.", "Experience_Level", "BMI")]
+datos_num
+```
+```{r}
+library(reshape2)
+library(ggplot2)
+
+# Matriz de correlaciones
+cor_matrix <- cor(datos_num, use = "pairwise.complete.obs")
+#round(cor_matrix, 2)
+
+# Convertir la matriz de correlación en un df
+cor_data <- melt(cor_matrix)
+
+# Visualización de HeatMap
+ggplot(data = cor_data, aes(x=Var1, y=Var2, fill=value)) +
+  geom_tile(color="white") + 
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), 
+                       name="Correlación") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   hjust = 1)) +
+  labs(x = "", y = "")
+```
+```{r}
+library(psych)
+
+# Medida de adecuación muestral KMO
+KMO(cor_matrix)
+
+# Test de esfericidad de Bartlett
+cortest.bartlett(cor_matrix, n = nrow(datos_num))
+```
+```{r}
+# Solo vemos las variables numéricas
+datos_num_reduced <- subset(datos_num, select = -c(Age, Avg_BPM))
+
+# Checamos matriz de correlacion
+cor_matrix_reduced <- cor(datos_num_reduced, use = "pairwise.complete.obs")
+
+# KMO
+KMO_reduced <- KMO(cor_matrix_reduced)
+KMO_reduced
+
+# Test de esfericidad de Bartlett
+cortest.bartlett(cor_matrix_reduced, n = nrow(datos_num_reduced))
+```
+
+```{r}
+# Realizamos un análisis factorial con muchos factores
+fa_res <- fa(datos_num_reduced, nfactors = ncol(datos_num_reduced), fm = "ml")
+
+# Vemos Scree plot
+scree(datos_num_reduced)
+```
+```{r}
+# Otra manera de ver Scree plot
+fa.parallel(datos_num_reduced, fa = "fa", fm = "ml")
+```
+```{r}
+# Escalamos datos 
+datos_scaled <- scale(datos_num_reduced)
+
+# FA con 2 factores
+fa_2 <- fa(datos_scaled, nfactors = 2, rotate = "varimax", fm = "ml")
+# FA con 3 factores
+fa_3 <- fa(datos_scaled, nfactors = 3, rotate = "varimax", fm = "ml")
+```
+
+```{r}
+# Imrimimos resultados del modelo con 2 factores
+print(fa_2, cut = 0.3, sort = TRUE)
+```
+```{r}
+# Imprimir resultados del modelo con 3 factores
+print(fa_3, cut = 0.3, sort = TRUE)
+```
+
+```{r}
+# Vemos, de manera mas visual, las relaciones de los factores con las variables
+fa.diagram(fa_2)
+fa.diagram(fa_3)
+```
+
